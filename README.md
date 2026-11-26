@@ -6,7 +6,8 @@ Built around the **VRC Formula Alpha 2025** (CSP version). Two example dashboard
 
 ![The preview: steering wheel controls on the left, the dashboard with shift lights in the middle, console at the bottom](docs/preview-overview.png)
 
-<!-- Demo video: open this README on github.com, click the pencil (Edit), drag your .mp4 (max 10 MB) here and commit. GitHub replaces it with a video player link. -->
+
+https://github.com/user-attachments/assets/5622062e-71ed-4ee2-91b7-41ae906272ab
 
 > [!NOTE]
 > **This is a hobby project and a work in progress.** I built it to have a fast way to try out Lua dashboards without restarting the game for every change. It works well for that, but it is not perfect: the simulation is an approximation of the real car, not every CSP API is emulated, and the dashboards **have not been tested in-game yet**. Bug reports and ideas are welcome in [Issues](https://github.com/NilasMeeder/csp-dash-sim/issues).
