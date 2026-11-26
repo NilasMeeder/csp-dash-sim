@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Preview</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0e0f12; --panel: #16181d; --panel2: #1d2027; --line: #2a2e37; --text: #e6e8ec; --muted: #8b93a3;
+    --accent: #3d8bff; --manual: #ff9f1a; --err: #ff4d4f; --warn: #f5c542; --ok: #36c06b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  /* The row is pinned to the viewport so the control panel scrolls instead of growing past the bottom. */
+  body { display: grid; grid-template-columns: 420px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100vh; height: 100dvh; overflow: hidden; }
+  button, select, input { font: inherit; color: inherit; }
+  button { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  button:hover { border-color: #3b404c; }
+  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  code, .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+
+  /* ---------- left: stage ---------- */
+  #left { display: grid; grid-template-rows: auto minmax(0, 1fr) 220px; min-width: 0; }
+  #toolbar { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  #toolbar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  #toolbar select { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; max-width: 180px; }
+  #toolbar .stat { margin-left: auto; color: var(--muted); }
+  #stage { display: flex; align-items: center; justify-content: center; min-height: 0; padding: 16px; overflow: hidden; }
+
+  #wheel { position: relative; display: flex; flex-direction: column; align-items: center; }
+  #wheel.framed { padding: 18px 28px 28px; background: linear-gradient(180deg, #24262b, #15161a);
+    border-radius: 18px; box-shadow: 0 20px 60px #000a, inset 0 1px 0 #ffffff12; }
+  #leds { display: flex; gap: 10px; margin-bottom: 14px; z-index: 1; }
+  #wheel:not(.framed) #leds { margin-bottom: 10px; }
+  .led { width: 22px; height: 22px; border-radius: 50%; background: #1b1c20; box-shadow: inset 0 0 0 2px #0008; transition: background .03s; }
+  .screenRow { display: flex; align-items: center; gap: 14px; z-index: 1; }
+  .infoLeds { display: flex; flex-direction: column; gap: 10px; }
+  #screen { position: relative; z-index: 1; background: #000; border: 6px solid #050506; border-radius: 10px; box-shadow: 0 0 0 1px #333; line-height: 0; }
+  #display { display: block; image-rendering: auto; }
+  #grid { position: absolute; inset: 0; pointer-events: none; }
+  #errorBox { position: absolute; left: 0; right: 0; bottom: 0; max-height: 70%; overflow: auto; background: #200b0dee; color: #ffd6d6;
+    border-top: 2px solid var(--err); padding: 10px 12px; line-height: 1.45; display: none; white-space: pre-wrap; }
+  #errorBox b { color: #fff; }
+  #mousePos { position: absolute; top: 6px; left: 8px; background: #000c; color: #9ef; padding: 2px 6px; border-radius: 4px; line-height: 1.4; display: none; }
+
+  /* ---------- bottom: console ---------- */
+  #bottom { display: grid; grid-template-columns: minmax(0, 1fr) 300px; border-top: 1px solid var(--line); min-height: 0; }
+  #console { overflow: auto; padding: 6px 12px; min-height: 0; }
+  #console div { white-space: pre-wrap; border-bottom: 1px solid #ffffff08; padding: 1px 0; }
+  #console .warn { color: var(--warn); } #console .error { color: var(--err); } #console .info { color: var(--muted); }
+  #debug { overflow: auto; border-left: 1px solid var(--line); padding: 6px 12px; min-height: 0; }
+  #debug table { width: 100%; border-collapse: collapse; }
+  #debug td { padding: 1px 4px; border-bottom: 1px solid #ffffff08; }
+  #debug td:first-child { color: var(--muted); }
+  .panelTitle { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin: 2px 0 4px; display: flex; justify-content: space-between; }
+
+  /* ---------- right: controls ---------- */
+  #right { order: -1; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; min-height: 0; height: 100%; padding-bottom: 24px; }
+  #right section { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  #scenarios { display: flex; flex-wrap: wrap; gap: 6px; }
+  #scenarios button.on { background: var(--manual); border-color: var(--manual); color: #000; }
+  /* wheel controls: works like the buttons and rotaries in the car */
+  .pageNav { display: grid; grid-template-columns: 40px 1fr 40px; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .pageNav .name { text-align: center; font-weight: 700; font-size: 15px; letter-spacing: .08em; }
+  .pageNav button { font-size: 16px; padding: 4px 0; }
+  .steppers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stepper { display: grid; grid-template-columns: 30px 1fr 30px; align-items: center; background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 8px; overflow: hidden; user-select: none; }
+  .stepper button { border: 0; border-radius: 0; height: 100%; padding: 8px 0; font-size: 16px; background: #ffffff08; }
+  .stepper .mid { text-align: center; line-height: 1.15; padding: 4px 0; }
+  .stepper .lbl { font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+  .stepper .v { font: 600 16px ui-monospace, Menlo, monospace; }
+  .stepper.manual { border-color: var(--manual); }
+  .switches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+  .switches button { padding: 7px 4px; font-weight: 600; font-size: 12px; }
+  .switches button.hold { border-style: dashed; }
+  .switches button.on { background: var(--manual); border-color: var(--manual); color: #000; }
+  .flags button { font-size: 11px; }
+  .flags button.on { color: #000; }
+  .hint { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  .pitRow { display: grid; grid-template-columns: 110px minmax(0, 1fr) 52px; gap: 8px; align-items: center; padding: 3px 0; }
+  .pitRow label { color: #c9ced8; }
+  .pitRow .val { text-align: right; color: var(--muted); }
+  .pitRow input[type=range] { width: 100%; accent-color: var(--accent); }
+  .seg { display: flex; gap: 0; grid-column: 2 / 4; }
+  .seg button { flex: 1; border-radius: 0; padding: 4px 2px; font-size: 12px; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; } .seg button:last-child { border-radius: 0 6px 6px 0; }
+  #advanced > summary { font-weight: 600; }
+  #advanced details summary { padding-left: 20px; font-weight: 500; }
+  details { border-bottom: 1px solid var(--line); }
+  summary { padding: 8px 12px; cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; }
+  summary::after { content: '▸'; color: var(--muted); } details[open] summary::after { content: '▾'; }
+  summary .count { color: var(--manual); font-weight: 400; margin-left: auto; margin-right: 8px; }
+  .rows { padding: 0 12px 8px; }
+  .row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 64px 44px; gap: 8px; align-items: center; padding: 2px 0; }
+  .row label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c9ced8; }
+  .row .val { text-align: right; color: var(--muted); }
+  .row input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row.manual input[type=range] { accent-color: var(--manual); }
+  .row select { width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; }
+  .src { font-size: 10px; padding: 1px 0; border-radius: 4px; text-align: center; border: 1px solid var(--line); color: var(--muted); cursor: default; }
+  .row.manual .src { background: var(--manual); border-color: var(--manual); color: #000; cursor: pointer; }
+  .wheelPick { display: flex; gap: 4px; margin: 4px 0 6px; }
+  .toggle { width: 100%; }
+</style>
+</head>
+<body>
+<div id="left">
+  <div id="toolbar">
+    <button id="btnPause" title="Pause (space)">⏸ Pause</button>
+    <button id="btnSlow" title="Slow motion 0.25×">0.25×</button>
+    <button id="btnStep" title="One frame forward (.)">⏭ Step</button>
+    <span class="sep"></span>
+    <button id="btnGrid" title="Developer grid (g)">Grid</button>
+    <button id="btnCrop" class="on" title="Only the visible part of the texture">Visible area</button>
+    <button id="btnSharp" class="on" title="Off = real 1024 resolution like in AC">Sharp</button>
+    <select id="selSource" title="Which dashboard runs: the VRC original or a dashboard from dash/styles/&lt;name&gt;/"></select>
+    <button id="btnFrame" class="on" title="Bezel + LED bar around the screen">Bezel</button>
+    <button id="btnReload" title="Restart the Lua state (r)">↻ Restart Lua</button>
+    <span class="stat mono" id="stat">–</span>
+  </div>
+  <div id="stage">
+    <div id="wheel" class="framed">
+      <div id="leds"></div>
+      <div class="screenRow">
+      <div class="infoLeds" id="infoL" title="Info LEDs left (blue, red, yellow)"></div>
+      <div id="screen">
+        <canvas id="display"></canvas>
+        <canvas id="grid"></canvas>
+        <div id="mousePos" class="mono"></div>
+        <div id="errorBox" class="mono"></div>
+      </div>
+      <div class="infoLeds" id="infoR" title="Info LEDs right (blue, red, yellow)"></div>
+      </div>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="console"><div class="panelTitle"><span>Console (ac.log)</span><button id="btnClear" style="padding:0 6px">clear</button></div></div>
+    <div id="debug"><div class="panelTitle"><span>ac.debug</span></div><table id="debugTable"></table></div>
+  </div>
+</div>
+<div id="right">
+  <section id="controls">
+    <div class="panelTitle"><span>Steering wheel</span><button id="btnCtlReset" style="padding:0 6px" title="Reset all steering wheel settings">reset</button></div>
+    <div class="pageNav"><button id="pagePrev" title="Previous page (←)">◀</button><div class="name" id="pageName">RACE</div><button id="pageNext" title="Next page (→)">▶</button></div>
+    <div class="steppers" id="steppers"></div>
+    <div class="switches" id="switches"></div>
+    <div class="panelTitle" style="margin-top:10px"><span>Flag (race control)</span></div>
+    <div class="seg flags" id="flagSeg"></div>
+    <div class="hint">Scroll over a rotary = +/−. Dashed = hold.</div>
+  </section>
+  <details id="pitMenu" open><summary>Pit menu (driver settings)</summary><div class="rows" id="pitRows"></div></details>
+  <section>
+    <div class="panelTitle"><span>Scenarios</span><button id="btnStopScenario" style="padding:0 6px">stop</button></div>
+    <div id="scenarios"></div>
+  </section>
+  <section style="display:flex; gap:6px; align-items:center">
+    <button id="btnAllSim">All back to simulation</button>
+    <button id="btnResetSim">Reset lap</button>
+  </section>
+  <details id="advanced"><summary>All data (advanced)</summary><div id="groups"></div></details>
+</div>
+
+<script src="/preview/vendor/fengari-web.js"></script>
+<script src="/preview/render.js"></script>
+<script src="/preview/bridge.js"></script>
+<script src="/preview/sim.js"></script>
+<script src="/preview/ui.js"></script>
+</body>
+</html>

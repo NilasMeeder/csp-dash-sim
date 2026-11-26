@@ -1,0 +1,16 @@
+# VRC's car download stays local: never commit it (may be a symlink, hence no trailing slash)
+/VRC_-_AC_-_FA_2025_-_V1.1
+*.7z
+*.zip
+
+# build output contains patched VRC files
+dist/
+
+# reference screenshots (third-party footage) and local notes
+/screenshots
+CLAUDE.local.md
+.claude/
+
+.DS_Store
+node_modules/
+*.orig
